@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShweChats - Real-Time Chat App</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* Myanmar-friendly Font */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* gray-100 */
+        }
+        /* Custom Scrollbar for Chat Window */
+        #chat-messages::-webkit-scrollbar {
+            width: 8px;
+        }
+        #chat-messages::-webkit-scrollbar-thumb {
+            background-color: #34d399; /* emerald-400 */
+            border-radius: 4px;
+        }
+        #chat-messages::-webkit-scrollbar-track {
+            background-color: #f3f4f6; /* gray-100 */
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <!-- Main Container -->
+    <div id="app-container" class="w-full max-w-lg lg:max-w-xl bg-white shadow-2xl rounded-3xl min-h-[500px] flex flex-col">
+        <!-- Content will be rendered here by JavaScript -->
+    </div>
+
+    <script type="module">
+        // --- Firebase Configuration and Imports ---
+        // Provided by the user
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics.js";
+        import { 
+            getAuth, 
+            onAuthStateChanged, 
+            createUserWithEmailAndPassword,
+            signInWithEmailAndPassword,
+            signOut 
+        } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+        import { 
+            getFirestore, 
+            collection, 
+            query, 
+            orderBy, 
+            onSnapshot, 
+            addDoc, 
+            serverTimestamp,
+            setLogLevel 
+        } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+        // IMPORTANT: Use the configuration provided by the user
+        const firebaseConfig = {
+            apiKey: "AIzaSyAUL74mqVCIY1MMclrRhdVbY_VyP4lgQpY",
+            authDomain: "waiappstore.firebaseapp.com",
+            projectId: "waiappstore",
+            storageBucket: "waiappstore.firebasestorage.app",
+            messagingSenderId: "161610339691",
+            appId: "1:161610339691:web:ce59fafb6a21729030682e",
+            measurementId: "G-HH95X102MG"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        getAnalytics(app); // Initialize analytics (optional)
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        
+        // Use a default APP_ID for the public chat path structure
+        const APP_ID = "shwechats-public-chat"; 
+        const CHAT_COLLECTION_PATH = `artifacts/${APP_ID}/public/data/chats`;
+
+        // Set logging level for debugging (optional but recommended)
+        setLogLevel('debug');
+        
+        let currentUserId = null;
+        let currentUserEmail = null;
+        const appContainer = document.getElementById('app-container');
+
+        // --- Helper Functions ---
+
+        /**
+         * Renders the authentication form (Login or Register).
+         * @param {boolean} isLoginMode - true for login, false for register.
+         */
+        const renderAuthForm = (isLoginMode) => {
+            appContainer.innerHTML = `
+                <div class="p-8 w-full">
+                    <h1 class="text-3xl font-bold text-center text-gray-800 mb-6 text-emerald-600">
+                        <i class="fas fa-comment-dots mr-2"></i> ShweChats ${isLoginMode ? 'ဝင်ရန်' : 'အကောင့်ဖွင့်ရန်'}
+                    </h1>
+                    <p class="text-center text-sm text-gray-500 mb-8">
+                        Email/Password ဖြင့် ဝင်ရောက်ခြင်း (စာပို့ရန်သာ)
+                    </p>
+                    <div id="auth-error" class="text-red-500 text-sm mt-2 font-medium mb-4 text-center hidden"></div>
+                    
+                    <form id="auth-form" class="space-y-4">
+                        <input
+                            type="email"
+                            id="email-input"
+                            placeholder="အီးမေးလ် (Email)"
+                            required
+                            class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-emerald-500 focus:border-emerald-500 transition duration-150"
+                        />
+                        <input
+                            type="password"
+                            id="password-input"
+                            placeholder="စကားဝှက် (Password)"
+                            required
+                            class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-emerald-500 focus:border-emerald-500 transition duration-150"
+                        />
+                        
+                        <button
+                            type="submit"
+                            id="auth-button"
+                            class="w-full py-3 px-4 rounded-xl font-semibold transition duration-300 ease-in-out transform bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/50 hover:scale-[1.01]"
+                        >
+                            ${isLoginMode ? 'ဝင်မည်' : 'အကောင့်ဖွင့်မည်'}
+                        </button>
+                    </form>
+
+                    <div class="mt-6 text-center">
+                        <button
+                            id="toggle-mode"
+                            class="text-sm text-emerald-600 hover:text-emerald-700 font-semibold transition duration-150"
+                        >
+                            ${isLoginMode ? 'အကောင့်မရှိဘူးလား? မှတ်ပုံတင်ပါ' : 'အကောင့်ရှိပြီးသားလား? ဝင်မည်'}
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            // Attach event listeners
+            document.getElementById('toggle-mode').onclick = () => renderAuthForm(!isLoginMode);
+            document.getElementById('auth-form').onsubmit = (e) => handleAuthSubmit(e, isLoginMode);
+        };
+
+        /**
+         * Handles form submission for login/register.
+         */
+        const handleAuthSubmit = async (e, isLoginMode) => {
+            e.preventDefault();
+            const email = document.getElementById('email-input').value;
+            const password = document.getElementById('password-input').value;
+            const errorElement = document.getElementById('auth-error');
+            const button = document.getElementById('auth-button');
+            
+            errorElement.textContent = '';
+            errorElement.classList.add('hidden');
+            button.disabled = true;
+            button.textContent = 'ဆောင်ရွက်နေပါသည်...';
+
+            try {
+                if (isLoginMode) {
+                    await signInWithEmailAndPassword(auth, email, password);
+                } else {
+                    await createUserWithEmailAndPassword(auth, email, password);
+                }
+                // onAuthStateChanged will handle the screen update
+            } catch (err) {
+                console.error("Auth Error:", err);
+                let message = "မှားယွင်းမှုတစ်ခု ဖြစ်ပွားခဲ့သည် (အီးမေးလ် သို့မဟုတ် စကားဝှက် စစ်ဆေးပါ)";
+                if (err.code === 'auth/invalid-email') {
+                    message = 'အီးမေးလ် ပုံစံမမှန်ပါ။';
+                } else if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+                    message = 'အီးမေးလ် သို့မဟုတ် စကားဝှက် မှားယွင်းနေပါသည်။';
+                } else if (err.code === 'auth/weak-password') {
+                    message = 'စကားဝှက်သည် အနည်းဆုံး ၆ လုံး ရှိရပါမည်။';
+                } else if (err.code === 'auth/email-already-in-use') {
+                    message = 'ဤအီးမေးလ်ဖြင့် အကောင့်ဖွင့်ပြီးသား ဖြစ်ပါသည်။';
+                }
+                errorElement.textContent = message;
+                errorElement.classList.remove('hidden');
+                
+                button.disabled = false;
+                button.textContent = isLoginMode ? 'ဝင်မည်' : 'အကောင့်ဖွင့်မည်';
+            }
+        };
+
+        /**
+         * Renders the main chat window.
+         */
+        const renderChatWindow = () => {
+            appContainer.innerHTML = `
+                <div class="p-4 bg-emerald-600 text-white rounded-t-3xl shadow-md flex justify-between items-center">
+                    <h1 class="text-xl font-bold">
+                        <i class="fas fa-comments mr-2"></i> ShweChats စာပို့ခန်း
+                    </h1>
+                    <div class="flex items-center space-x-3">
+                        <span class="text-sm font-medium hidden sm:inline truncate">${currentUserEmail}</span>
+                        <button
+                            id="logout-button"
+                            class="text-sm bg-emerald-700 hover:bg-emerald-800 py-1 px-3 rounded-full transition duration-150"
+                        >
+                            <i class="fas fa-sign-out-alt"></i> ထွက်မည်
+                        </button>
+                    </div>
+                </div>
+
+                <div id="chat-messages" class="flex-grow p-4 overflow-y-auto custom-scrollbar" style="min-height: 400px;">
+                    <!-- Messages will be rendered here -->
+                    <div id="loading-indicator" class="text-center py-10 text-gray-500">
+                        စာများ စတင်ရယူနေပါသည်။...
+                    </div>
+                </div>
+
+                <form id="message-form" class="p-4 border-t border-gray-200 flex space-x-3 rounded-b-3xl">
+                    <input
+                        type="text"
+                        id="message-input"
+                        placeholder="စာရိုက်ပါ..."
+                        autocomplete="off"
+                        required
+                        class="flex-grow px-4 py-3 border border-gray-300 rounded-xl focus:ring-emerald-500 focus:border-emerald-500 transition duration-150"
+                    />
+                    <button
+                        type="submit"
+                        id="send-button"
+                        class="w-auto px-6 py-3 rounded-xl font-semibold transition duration-300 ease-in-out transform bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/50 hover:scale-[1.01]"
+                    >
+                        <i class="fas fa-paper-plane"></i> ပို့မည်
+                    </button>
+                </form>
+            `;
+
+            document.getElementById('logout-button').onclick = handleLogout;
+            document.getElementById('message-form').onsubmit = handleSend;
+
+            listenForMessages();
+        };
+
+        /**
+         * Attaches the real-time listener to Firestore.
+         */
+        const listenForMessages = () => {
+            const messagesRef = collection(db, CHAT_COLLECTION_PATH);
+            const q = query(messagesRef, orderBy("timestamp", "asc"));
+            const messagesContainer = document.getElementById('chat-messages');
+            const loadingIndicator = document.getElementById('loading-indicator');
+
+            onSnapshot(q, (snapshot) => {
+                const messages = [];
+                snapshot.forEach(doc => {
+                    messages.push({ id: doc.id, ...doc.data() });
+                });
+                
+                // Clear previous messages
+                if (loadingIndicator) loadingIndicator.remove();
+                messagesContainer.innerHTML = '';
+
+                if (messages.length === 0) {
+                    messagesContainer.innerHTML = `<div class="text-center py-10 text-gray-500">စကားဝိုင်း စတင်လိုက်ပါ။</div>`;
+                } else {
+                    messages.forEach(msg => {
+                        messagesContainer.appendChild(createMessageElement(msg));
+                    });
+                }
+
+                // Scroll to the bottom of the chat window
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }, (error) => {
+                console.error("စာများရယူရာတွင် မှားယွင်းမှု: ", error);
+                messagesContainer.innerHTML = `<div class="text-center py-10 text-red-500">စာရယူရာတွင် အမှားဖြစ်ပွားသည်။</div>`;
+            });
+        };
+
+        /**
+         * Creates the HTML element for a single message.
+         */
+        const createMessageElement = (message) => {
+            const isMine = message.senderId === currentUserId;
+            const time = message.createdAt?.toDate ? message.createdAt.toDate().toLocaleTimeString('my-MM') : 'အချိန်မသိ';
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `flex mb-4 ${isMine ? 'justify-end' : 'justify-start'}`;
+
+            messageDiv.innerHTML = `
+                <div class="max-w-[80%] lg:max-w-[60%] p-3 rounded-2xl shadow-md ${
+                    isMine 
+                        ? 'bg-emerald-500 text-white rounded-tr-none' 
+                        : 'bg-gray-100 text-gray-800 rounded-tl-none'
+                }">
+                    ${!isMine ? `<div class="text-xs font-semibold mb-1 opacity-80 text-emerald-700 truncate">${message.senderEmail}</div>` : ''}
+                    <p class="text-base break-words whitespace-pre-wrap">${message.text}</p>
+                    <span class="text-xs mt-1 block ${isMine ? 'opacity-70' : 'text-gray-500'}">${time}</span>
+                </div>
+            `;
+            return messageDiv;
+        };
+
+        /**
+         * Handles sending a new message.
+         */
+        const handleSend = async (e) => {
+            e.preventDefault();
+            const messageInput = document.getElementById('message-input');
+            const messageText = messageInput.value.trim();
+
+            if (!messageText) return;
+
+            try {
+                await addDoc(collection(db, CHAT_COLLECTION_PATH), {
+                    text: messageText,
+                    createdAt: serverTimestamp(),
+                    senderId: currentUserId,
+                    senderEmail: currentUserEmail,
+                    timestamp: Date.now()
+                });
+                messageInput.value = ''; // Clear input after successful send
+            } catch (error) {
+                console.error("စာပို့ရာတွင် မှားယွင်းမှု: ", error);
+            }
+        };
+
+        /**
+         * Handles user logout.
+         */
+        const handleLogout = async () => {
+            try {
+                await signOut(auth);
+                // onAuthStateChanged will handle UI refresh
+            } catch (error) {
+                console.error("ထွက်ရာတွင် မှားယွင်းမှု: ", error);
+            }
+        };
+
+        // --- Main Authentication State Listener ---
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // User is signed in
+                currentUserId = user.uid;
+                currentUserEmail = user.email || `အမည်မသိ (${user.uid.substring(0, 8)}...)`;
+                // Only render chat if the user is signed in with email/password (not anonymous)
+                if (user.email) {
+                    renderChatWindow();
+                } else {
+                    // If initial anonymous sign-in, redirect to login page
+                    renderAuthForm(true); 
+                }
+            } else {
+                // User is signed out
+                currentUserId = null;
+                currentUserEmail = null;
+                renderAuthForm(true); // Default to login mode
+            }
+        });
+
+        // Initialize the app view on load (handled by onAuthStateChanged)
+        // We ensure a default view while Firebase is checking the state
+        appContainer.innerHTML = `<div class="min-h-[500px] flex items-center justify-center p-4"><div class="text-xl font-medium text-emerald-600 animate-pulse">App ကို စတင်နေပါသည်။...</div></div>`;
+    </script>
+</body>
+</html>
