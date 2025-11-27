@@ -1,20 +1,24 @@
-// app.js
-import { db, doc, setDoc, getDoc, serverTimestamp } from './firebase.js';
+import { auth } from './firebase-config.js';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 
-export async function createUserDoc(user){
-  const uref = doc(db, 'users', user.uid);
-  const snap = await getDoc(uref);
-  if(!snap.exists()){
-    await setDoc(uref, {
-      uid: user.uid,
-      email: user.email,
-      name: user.displayName || user.email.split('@')[0],
-      avatar: '',
-      bio: '',
-      createdAt: serverTimestamp(),
-      followers: 0,
-      following: 0,
-      isAdmin: false
-    });
-  }
-}
+const loginBtn = document.getElementById("loginBtn");
+const registerBtn = document.getElementById("registerBtn");
+const emailInput = document.getElementById("email");
+const passwordInput = document.getElementById("password");
+const errorMsg = document.getElementById("errorMsg");
+
+loginBtn.addEventListener("click", () => {
+    const email = emailInput.value;
+    const password = passwordInput.value;
+    signInWithEmailAndPassword(auth, email, password)
+    .then(() => window.location.href="feed.html")
+    .catch((err) => errorMsg.textContent = err.message);
+});
+
+registerBtn.addEventListener("click", () => {
+    const email = emailInput.value;
+    const password = passwordInput.value;
+    createUserWithEmailAndPassword(auth, email, password)
+    .then(() => window.location.href="feed.html")
+    .catch((err) => errorMsg.textContent = err.message);
+});
