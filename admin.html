@@ -1,0 +1,41 @@
+<!-- admin.html -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Admin</title><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="style.css"></head>
+<body>
+<nav><div class="container"><button onclick="location='feed.html'">Back</button> Admin Panel</div></nav>
+<div class="container">
+  <div class="center-card">
+    <h3>Admin Tools</h3>
+    <div id="adminActions"></div>
+    <div id="postsList"></div>
+  </div>
+</div>
+
+<script type="module">
+import { auth, onAuthStateChanged, db, collection, query, orderBy, onSnapshot, deleteDoc, doc, getDoc } from './firebase.js';
+
+onAuthStateChanged(auth, async user => {
+  if(!user) return location='index.html';
+  const uref = doc(db,'users',user.uid);
+  const snap = await getDoc(uref);
+  if(!snap.exists() || !snap.data().isAdmin) { alert('Not admin'); return location='feed.html'; }
+  loadPosts();
+});
+
+function loadPosts(){
+  const q = query(collection(db,'posts'), orderBy('createdAt','desc'));
+  onSnapshot(q, snap=>{
+    const out = document.getElementById('postsList'); out.innerHTML='';
+    snap.forEach(s=>{
+      const p = s.data(); const id=s.id;
+      const div = document.createElement('div'); div.className='post';
+      div.innerHTML = `<b>${p.userName}</b><p>${p.text}</p><button class="del">Delete</button>`;
+      div.querySelector('.del').addEventListener('click', async ()=>{ if(confirm('Delete post?')){ await deleteDoc(doc(db,'posts',id)); } });
+      out.appendChild(div);
+    });
+  });
+}
+</script>
+</body>
+</html>
