@@ -1,0 +1,46 @@
+/* style.css */
+:root{
+  --primary:#2b6ef6;
+  --bg:#f4f6fb;
+  --card:#fff;
+  --muted:#777;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Inter,Arial,Helvetica,sans-serif;
+  background:var(--bg);
+  color:#111;
+}
+nav{
+  background:var(--card);
+  padding:10px 16px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  border-bottom:1px solid #eee;
+  position:sticky;top:0;z-index:50;
+}
+.container{max-width:900px;margin:18px auto;padding:0 12px;}
+.center-card{background:var(--card);padding:20px;border-radius:12px;box-shadow:0 6px 20px rgba(0,0,0,0.04)}
+input[type="text"],input[type="email"],input[type="password"],textarea{
+  width:100%;padding:10px;border-radius:8px;border:1px solid #ddd;margin-top:10px;
+}
+button{background:var(--primary);color:#fff;border:none;padding:10px 12px;border-radius:8px;cursor:pointer}
+button.ghost{background:transparent;color:var(--primary);border:1px solid var(--primary)}
+.post-box{display:flex;gap:12px;align-items:flex-start}
+.post-box textarea{flex:1;min-height:80px}
+.feed .post{background:var(--card);padding:14px;border-radius:12px;margin-top:12px;box-shadow:0 4px 12px rgba(0,0,0,0.03)}
+.post .meta{display:flex;align-items:center;gap:10px}
+.avatar{width:40px;height:40px;border-radius:50%;background:#ddd;display:inline-block}
+.post img{max-width:100%;margin-top:10px;border-radius:8px}
+.actions{display:flex;gap:10px;margin-top:10px}
+.small{font-size:13px;color:var(--muted)}
+.row{display:flex;gap:12px;align-items:center}
+.side{width:260px}
+.layout{display:flex;gap:18px}
+.story-strip{display:flex;gap:8px;padding:10px;background:var(--card);border-radius:12px;overflow:auto}
+.story{width:80px;height:120px;background:#eee;border-radius:10px;flex:0 0 auto;padding:6px;text-align:center}
+.comment-box{margin-top:8px}
+.comment{padding:8px;border-radius:8px;background:#f6f8fc;margin-top:6px}
+.profile-box{display:flex;gap:12px;align-items:center}
